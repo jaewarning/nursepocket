@@ -1,0 +1,125 @@
+<!doctype html>
+<!--
+  권리침해 삭제 요청 접수 폼 (설계 §7.2).
+  ‼ 이 파일은 우리 Worker가 아니라 정적 호스팅(GitHub Pages)에 올린다.
+     Workers 요청 한도가 소진되거나 서버가 죽어도 법적 접수가 막히면 안 되기 때문이다.
+     그래서 보내기는 두 길을 준다: ①서버로 보내기(되면 자동 임시 가림까지) ②메일로 보내기(항상 가능).
+  올릴 곳: jaewarning.github.io/nursepocket/rights.html  (개인정보처리방침과 같은 저장소)
+  배포 전에 아래 SERVER 주소를 실제 서버 주소로 바꾼다.
+-->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>널스포켓 — 게시글 삭제 요청</title>
+<style>
+  :root { --bg:#fff8f7; --card:#fff; --text:#1b1f24; --sub:#5b6470; --line:#ebdde0; --primary:#b0004a; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0d1117; --card:#161b22; --text:#e6edf3; --sub:#9da7b3; --line:#30363d; --primary:#ff6392; } }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,"Segoe UI",sans-serif; line-height:1.6; }
+  main { max-width:680px; margin:0 auto; padding:16px; }
+  h1 { font-size:22px; margin:24px 0 8px; }
+  h2 { font-size:17px; margin:24px 0 8px; }
+  p, li { color:var(--sub); font-size:15px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin:16px 0; }
+  label { display:block; margin:14px 0 4px; font-size:14px; color:var(--text); }
+  input, textarea, select { width:100%; box-sizing:border-box; padding:10px 12px; font-size:16px; min-height:44px;
+    border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--text); }
+  textarea { min-height:120px; }
+  button { width:100%; min-height:48px; font-size:16px; border:0; border-radius:10px; background:var(--primary); color:#fff; margin-top:16px; cursor:pointer; }
+  button.plain { background:transparent; color:var(--primary); border:1px solid var(--primary); }
+  .req::after { content:" *"; color:var(--primary); }
+  #out { margin-top:14px; font-size:15px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>게시글 삭제 요청</h1>
+  <p>널스포켓 커뮤니티에 올라온 글이 본인의 권리를 침해한다면 여기에서 삭제를 요청할 수 있습니다.
+     앱을 쓰지 않는 분도 요청할 수 있습니다.</p>
+
+  <div class="card">
+    <h2>먼저 확인해 주세요</h2>
+    <ul>
+      <li>요청이 <b>적격 요건</b>을 갖추면 접수 즉시 그 글을 임시로 가립니다. 요건은 <b>대상 글 주소 · 이메일 인증 · 권리관계 · 침해 사실</b> 네 가지입니다.</li>
+      <li>임시 가림은 정보통신망법 제44조의2에 따라 30일간 유지되며, 그 뒤 자동으로 다시 게시되지 않고 검토를 거칩니다.</li>
+      <li>환자 정보가 포함된 글은 가리는 것에서 멈추지 않고 원문을 삭제합니다. 다만 백업 복구 이력에는 최대 7일간 남을 수 있습니다.</li>
+      <li>보내 주신 자료는 담당자 1명만 보며, 사건이 끝나면 삭제합니다. 신분 확인 1건·침해 입증 1건, 각 5MB까지만 받습니다.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <label class="req" for="url">대상 글 주소 또는 글 번호</label>
+    <input id="url" placeholder="앱에서 글 오른쪽 위 [공유]로 복사한 주소를 붙여 주세요" autocomplete="off">
+
+    <label class="req" for="email">이메일</label>
+    <input id="email" type="email" placeholder="인증 링크를 보낼 주소" autocomplete="email">
+
+    <label class="req" for="relation">권리관계</label>
+    <select id="relation">
+      <option value="self">본인입니다</option>
+      <option value="guardian">법정대리인입니다(보호자)</option>
+      <option value="agent">대리인입니다(위임받음)</option>
+    </select>
+
+    <label class="req" for="claim">어느 부분이 왜 침해인지</label>
+    <textarea id="claim" placeholder="예: 글에 제 병실 번호와 진단이 적혀 있습니다. 제 동의 없이 올라갔습니다."></textarea>
+
+    <button id="send">서버로 보내기</button>
+    <button class="plain" id="mail">메일로 보내기</button>
+    <div id="out"></div>
+    <p style="font-size:13px">서버가 점검 중이거나 연결이 안 될 때는 <b>메일로 보내기</b>를 눌러 주세요. 메일로 온 요청도 같은 절차로 처리합니다.</p>
+  </div>
+</main>
+<script>
+  // 배포 전에 실제 서버 주소로 바꾼다
+  var SERVER = 'https://nurse-kit-server.jaewon5501.workers.dev';
+  var MAIL = 'jaewon5501@gmail.com';
+  var out = document.getElementById('out');
+  function val(id) { return document.getElementById(id).value.trim(); }
+  // 주소에서 글 번호만 뽑는다(전체 주소를 붙여도 되게)
+  function targetId() {
+    var v = val('url');
+    var m = /([A-Za-z0-9_-]{6,64})\s*$/.exec(v);
+    return m ? m[1] : '';
+  }
+  function body() {
+    return { targetType: 'post', targetId: targetId(), email: val('email'), relation: val('relation'), claim: val('claim') };
+  }
+  function missing(b) {
+    if (!b.targetId) return '대상 글 주소를 넣어 주세요.';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(b.email)) return '이메일 주소를 확인해 주세요.';
+    if (b.claim.length < 10) return '어느 부분이 왜 침해인지 조금 더 적어 주세요.';
+    return '';
+  }
+  document.getElementById('send').onclick = function () {
+    var b = body(); var bad = missing(b);
+    if (bad) { out.textContent = bad; return; }
+    out.textContent = '보내는 중…';
+    fetch(SERVER + '/v1/rights', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(b) })
+      .then(function (r) { return r.json().then(function (j) { return { s: r.status, j: j }; }); })
+      .then(function (r) {
+        if (r.s === 200) {
+          out.innerHTML = '접수되었습니다. 아래 링크를 눌러 이메일 인증을 마치면 즉시 임시 가림이 적용됩니다.<br>'
+            + '<a href="#" id="verify">이메일 인증 마치기</a>';
+          document.getElementById('verify').onclick = function (e) {
+            e.preventDefault();
+            fetch(SERVER + '/v1/rights/verify', { method: 'POST', headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ caseId: r.j.caseId, token: r.j.verifyToken }) })
+              .then(function (v) { out.textContent = v.ok ? '인증이 끝났습니다. 해당 글을 임시로 가렸습니다.' : '인증에 실패했습니다. 메일로 보내 주세요.'; })
+              .catch(function () { out.textContent = '인증에 실패했습니다. 메일로 보내 주세요.'; });
+          };
+        } else if (r.s === 429) out.textContent = '같은 이메일로 하루에 보낼 수 있는 건수를 넘었습니다. 메일로 보내 주세요.';
+        else if (r.s === 404) out.textContent = '그 글을 찾지 못했습니다. 주소를 확인하거나 메일로 보내 주세요.';
+        else out.textContent = '보내지 못했습니다. 메일로 보내 주세요.';
+      })
+      .catch(function () { out.textContent = '서버에 연결하지 못했습니다. 메일로 보내 주세요.'; });
+  };
+  document.getElementById('mail').onclick = function () {
+    var b = body();
+    var text = '대상 글: ' + val('url') + '\n권리관계: ' + b.relation + '\n침해 사실:\n' + b.claim
+      + '\n\n(신분 확인 자료와 침해 입증 자료를 첨부해 주세요. 각 5MB까지)';
+    location.href = 'mailto:' + MAIL + '?subject=' + encodeURIComponent('[널스포켓] 게시글 삭제 요청') + '&body=' + encodeURIComponent(text);
+  };
+</script>
+</body>
+</html>
