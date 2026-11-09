@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+<title>널스포켓 앱에서 열기</title>
+<style>
+/* 색은 사이트 기존 값(index.html·privacy.html)만 쓴다. 다크는 같은 값을 뒤집어 쓴다 */
+:root{--bg:#F6F8FB;--ink:#1A2230;--body:#333e52;--line:#E3E8F0;--card:#fff;--accent:#3B82F6}
+@media (prefers-color-scheme: dark){:root{--bg:#1A2230;--ink:#F6F8FB;--body:#E3E8F0;--line:#5B6676;--card:#1A2230}}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Segoe UI',Pretendard,'Apple SD Gothic Neo',sans-serif;line-height:1.7;word-break:keep-all;overflow-wrap:anywhere}
+main{max-width:680px;margin:0 auto;padding:16px;box-sizing:border-box}
+h1{font-size:22px;margin:24px 0 8px}
+p{font-size:15px;color:var(--body);margin:0 0 24px}
+.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-box;width:100%;min-height:48px;margin:0 0 12px;padding:8px 16px;border-radius:12px;text-decoration:none;font-size:19px;font-weight:700}
+.primary{background:var(--accent);color:#fff}
+.plain{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+[hidden]{display:none}
+</style>
+</head>
+<body>
+<main>
+<h1 id="title">널스포켓 앱에서 열어 주세요</h1>
+<p id="body">이 링크의 글은 널스포켓 앱 안에서만 볼 수 있어요. 앱이 열리지 않으면 아래에서 설치해 주세요.</p>
+<a id="open" class="btn primary" href="nursekit://community">앱 열기</a>
+<a class="btn plain" href="https://play.google.com/store/apps/details?id=com.jaewarning.nursepocket">Google Play에서 받기</a>
+<noscript><!-- 스크립트 꺼짐: 앱 열기는 p 없이 nursekit://community(커뮤니티 탭)로 연다 --></noscript>
+</main>
+<script>
+// p는 신뢰할 수 없는 입력: 형식이 맞을 때만 href·스킴에 넣고, 화면 문구는 고정 문자열을 textContent로만 바꾼다
+(function () {
+  var p = new URLSearchParams(location.search).get('p');
+  var open = document.getElementById('open');
+  if (p && /^[A-Za-z0-9_-]{1,64}$/.test(p)) {
+    open.href = 'nursekit://community/' + p;
+    location.href = open.href;
+  } else {
+    document.getElementById('title').textContent = '열 수 없는 링크예요';
+    document.getElementById('body').textContent = '링크를 다시 확인해 주세요.';
+    open.hidden = true;
+  }
+})();
+</script>
+</body>
+</html>
